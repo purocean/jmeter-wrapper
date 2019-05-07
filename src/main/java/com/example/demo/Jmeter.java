@@ -11,7 +11,6 @@ import org.apache.jmeter.report.dashboard.ReportGenerator;
 import org.apache.jmeter.reporters.ResultCollector;
 import org.apache.jmeter.reporters.Summariser;
 import org.apache.jmeter.testelement.TestElement;
-import org.apache.jmeter.testelement.TestPlan;
 import org.apache.jmeter.threads.ThreadGroup;
 import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jorphan.collections.HashTree;
@@ -19,55 +18,32 @@ import org.apache.jorphan.collections.HashTree;
 import java.io.File;
 
 public class Jmeter {
-    public void createJmeter() {
-        // jemter 引擎
+    public static String logFileName = "stresstest.csv";
+
+    public StandardJMeterEngine createJmeter(HashTree testPlanTree) {
+        // 清理日志文件
+        File file = new File(logFileName);
+        if (file.exists()) file.delete();
+
         StandardJMeterEngine standardJMeterEngine = new StandardJMeterEngine();
-        // 设置不适用gui的方式调用jmeter
-        System.setProperty(JMeter.JMETER_NON_GUI, "true");
-        // 设置jmeter.properties文件，我们将jmeter文件存放在resources中，通过classload
-        String path = TaskService.class.getClassLoader().getResource("jmeter.properties").getPath();
-        File jmeterPropertiesFile = new File(path);
-        if (jmeterPropertiesFile.exists()) {
-            JMeterUtils.loadJMeterProperties(jmeterPropertiesFile.getPath());
-            HashTree testPlanTree = new HashTree();
-            // 创建测试计划
-            TestPlan testPlan = new TestPlan("Create JMeter Script From Java Code");
-            // 创建http请求收集器
-            HTTPSamplerProxy examplecomSampler = createHTTPSamplerProxy();
-            // 创建循环控制器
-            LoopController loopController = createLoopController();
-            // 创建线程组
-            ThreadGroup threadGroup = createThreadGroup();
-            // 线程组设置循环控制
-            threadGroup.setSamplerController(loopController);
-            // 将测试计划添加到测试配置树
-            HashTree threadGroupHashTree = testPlanTree.add(testPlan, threadGroup);
-            // 将http请求采样器添加到线程组下
-            threadGroupHashTree.add(examplecomSampler);
-            //增加结果收集
+        // 配置jmeter
+        standardJMeterEngine.configure(testPlanTree);
 
-            String file = "stresstest.csv";
-            ResultCollector jMeterSummarizer = buildJMeterSummarizer(file);
-            testPlanTree.add(testPlan, jMeterSummarizer);
+        return standardJMeterEngine;
+    }
 
-            // 配置jmeter
-            standardJMeterEngine.configure(testPlanTree);
-            // 运行
-            standardJMeterEngine.run();
-
-            ReportGenerator generator = null;
-            try {
-                generator = new ReportGenerator(file, null);
-                generator.generate();
-            } catch (ConfigurationException | GenerationException e) {
-                e.printStackTrace();
-            }
+    public static void gen() {
+        ReportGenerator generator = null;
+        try {
+            String file = logFileName;
+            generator = new ReportGenerator(file, null);
+            generator.generate();
+        } catch (ConfigurationException | GenerationException e) {
+            e.printStackTrace();
         }
     }
 
-    public static ResultCollector buildJMeterSummarizer(String logFileName) {
-        // TODO 删除老文件
-
+    public static ResultCollector buildJMeterSummarizer() {
         // add Summarizer output to get progress in stdout:
         Summariser summariser = null;
         String summariserName = JMeterUtils.getPropDefault("summariser.name", "summary");
@@ -89,14 +65,14 @@ public class Jmeter {
      *
      * @return
      */
-    public static ThreadGroup createThreadGroup() {
+    public static ThreadGroup createThreadGroup(long duration) {
         ThreadGroup threadGroup = new ThreadGroup();
         threadGroup.setName("Example Thread Group");
         threadGroup.setNumThreads(1);
         threadGroup.setRampUp(0);
         threadGroup.setProperty(TestElement.TEST_CLASS, ThreadGroup.class.getName());
         threadGroup.setScheduler(true);
-        threadGroup.setDuration(5);
+        threadGroup.setDuration(duration);
         threadGroup.setDelay(0);
         return threadGroup;
     }
@@ -121,18 +97,34 @@ public class Jmeter {
      *
      * @return
      */
-    public static HTTPSamplerProxy createHTTPSamplerProxy() {
-        HeaderManager headerManager = new HeaderManager();
-        headerManager.setProperty("Content-Type", "multipart/form-data");
-        HTTPSamplerProxy httpSamplerProxy = new HTTPSamplerProxy();
-        httpSamplerProxy.setDomain("www.baidu.com");
-        httpSamplerProxy.setPort(80);
-        httpSamplerProxy.setPath("/");
-        httpSamplerProxy.setMethod("GET");
-        httpSamplerProxy.setConnectTimeout("5000");
-        httpSamplerProxy.setUseKeepAlive(true);
-        httpSamplerProxy.setProperty(TestElement.TEST_CLASS, HTTPSamplerProxy.class.getName());
-        httpSamplerProxy.setHeaderManager(headerManager);
-        return httpSamplerProxy;
+    public static HTTPSamplerProxy createHTTPSamplerProxy(String method, String urlStr, String data) {
+        try {
+            //URL url = new URL(urlStr);
+
+            HeaderManager headerManager = new HeaderManager();
+            HTTPSamplerProxy httpSamplerProxy = new HTTPSamplerProxy();
+
+            if (method.equals("POST")) {
+                headerManager.setProperty("Content-Type", "application/x-www-form-urlencoded");
+                httpSamplerProxy.parseArguments(data);
+            }
+
+            httpSamplerProxy.setPath(urlStr);
+            //httpSamplerProxy.setDomain(url.getHost());
+            //httpSamplerProxy.setPort(url.getPort());
+            //httpSamplerProxy.setPath(url.getPath());
+            //httpSamplerProxy.setProtocol(url.getProtocol());
+            httpSamplerProxy.setMethod(method);
+            httpSamplerProxy.setConnectTimeout("5000");
+            httpSamplerProxy.setUseKeepAlive(true);
+            httpSamplerProxy.setProperty(TestElement.TEST_CLASS, HTTPSamplerProxy.class.getName());
+            httpSamplerProxy.setHeaderManager(headerManager);
+            return httpSamplerProxy;
+
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
+
+        return null;
     }
 }
