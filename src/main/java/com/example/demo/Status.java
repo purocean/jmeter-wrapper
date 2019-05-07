@@ -1,7 +1,8 @@
 package com.example.demo;
 
+import java.util.HashMap;
+
 class Status {
     public boolean active;
-    public Integer count;
-    public Integer done;
+    public HashMap<String, Result> result;
 }
