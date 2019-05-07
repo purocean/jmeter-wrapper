@@ -14,4 +14,8 @@ public class Result {
     public long set;
     public long est;
     public long eet;
+    public long time;
+    public long maxTime;
+    public long minTime;
+    public double meanTime;
 }

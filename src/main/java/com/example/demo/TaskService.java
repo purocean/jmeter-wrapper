@@ -85,6 +85,10 @@ public class TaskService {
                 r.bytes = s.stream().mapToLong(SampleResult::getBytesAsLong).sum();
                 r.sendBytes = s.stream().mapToLong(SampleResult::getSentBytes).sum();
                 r.maxThreads = s.stream().mapToLong(SampleResult::getGroupThreads).max().getAsLong();
+
+                r.maxTime = s.stream().mapToLong(x -> x.getEndTime() - x.getStartTime()).max().getAsLong();
+                r.minTime = s.stream().mapToLong(x -> x.getEndTime() - x.getStartTime()).min().getAsLong();
+                r.meanTime = s.stream().mapToLong(x -> x.getEndTime() - x.getStartTime()).average().getAsDouble();
             }
 
             result.put(k, r);
