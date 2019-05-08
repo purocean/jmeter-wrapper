@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org"
+      xmlns:layout="http://www.ultraq.net.nz/web/thymeleaf/layout"
+      layout:decorator="layout">
+<head>
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <!-- 上述3个meta标签*必须*放在最前面，任何其他内容都*必须*跟随其后！ -->
+    <title>微服务性能缺陷分析工具</title>
+
+    <!-- Bootstrap -->
+    <link th:href="@{/css/bootstrap.css}" href="../public/css/bootstrap.css" rel="stylesheet">
+    <style>
+        [v-cloak] {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+<div id="app" style="max-width: 800px; margin: auto" v-cloak>
+    <h1>微服务性能缺陷分析工具</h1>
+    <hr>
+    <div style="display: flex;justify-content: space-between;margin: 10px 0">
+        <div class="input-group">
+            <span class="input-group-addon">请求方式</span>
+            <select class="form-control" v-model="form.method">
+                <option>GET</option>
+                <option>POST</option>
+                <option>DELETE</option>
+            </select>
+        </div>
+        <div class="input-group">
+            <span class="input-group-addon">并发线程数</span>
+            <input v-model="form.threads" type="text" class="form-control" placeholder="大于1">
+        </div>
+        <div class="input-group">
+            <span class="input-group-addon">持续时间（秒）</span>
+            <input v-model="form.duration" type="text" class="form-control" placeholder="大于1">
+        </div>
+    </div>
+    <div style="display: flex;justify-content: space-between;margin: 10px 0">
+        <div class="input-group" style="flex: auto;">
+            <span class="input-group-addon">Url</span>
+            <input v-model="form.url" type="text" class="form-control" placeholder="http://">
+        </div>
+    </div>
+    <div v-if="form.method === 'POST'" style="display: flex;justify-content: space-between;margin: 10px 0">
+        <div class="input-group" style="flex: auto;">
+            <span class="input-group-addon">数据</span>
+            <textarea v-model="form.data" type="text" class="form-control" placeholder="a=1&b=2&c=3"></textarea>
+        </div>
+    </div>
+    <div style="display: flex;justify-content: space-between;margin: 10px 0">
+        <button v-if="!status || !status.active" class="btn btn-success" v-on:click="addTask">添加任务</button>
+        <template v-if="status">
+            <button v-if="!status.active" class="btn btn-info">执行</button>
+            <button v-if="status.active" class="btn btn-danger">停止</button>
+        </template>
+    </div>
+    <hr>
+    <div>
+        <div v-for="(task, i) in tasks" :key="i">
+            <h4>{{task.method}} {{task.url}}</h4>
+            <div><b>并发线程：{{task.threads}} 持续时间：{{task.duration}}</b></div>
+            <div v-if="status && status.result[task.url]" style="display: flex;justify-content: space-between;margin: 10px 0">
+                <ul class="list-group" style="width: 24%">
+                    <li class="list-group-item"><b>总共请求：</b>{{status.result[task.url].total}}}</li>
+                    <li class="list-group-item"><b>成功请求</b>{{status.result[task.url].success}}}</li>
+                    <li class="list-group-item"><b></b>{{status.result[task.url].fail}}}</li>
+                    <li class="list-group-item"><b></b>{{status.result[task.url].bytes}}}</li>
+                </ul>
+                <ul class="list-group" style="width: 24%">
+                    <li class="list-group-item">Cras justo odio</li>
+                    <li class="list-group-item">Dapibus ac facilisis in</li>
+                    <li class="list-group-item">Morbi leo risus</li>
+                    <li class="list-group-item">Porta ac consectetur ac</li>
+                    <li class="list-group-item">Vestibulum at eros</li>
+                </ul>
+                <ul class="list-group" style="width: 24%">
+                    <li class="list-group-item">Cras justo odio</li>
+                    <li class="list-group-item">Dapibus ac facilisis in</li>
+                    <li class="list-group-item">Morbi leo risus</li>
+                    <li class="list-group-item">Porta ac consectetur ac</li>
+                    <li class="list-group-item">Vestibulum at eros</li>
+                </ul>
+                <ul class="list-group" style="width: 24%">
+                    <li class="list-group-item">Cras justo odio</li>
+                    <li class="list-group-item">Dapibus ac facilisis in</li>
+                    <li class="list-group-item">Morbi leo risus</li>
+                    <li class="list-group-item">Porta ac consectetur ac</li>
+                    <li class="list-group-item">Vestibulum at eros</li>
+                </ul>
+            </div>
+            <hr>
+        </div>
+    </div>
+</div>
+
+<!-- jQuery (Bootstrap 的所有 JavaScript 插件都依赖 jQuery，所以必须放在前边) -->
+<script th:src="@{/js/jquery.min.js}" src="../public/js/jquery.min.js" type="text/javascript"></script>
+<!-- 加载 Bootstrap 的所有 JavaScript 插件。你也可以根据需要只加载单个插件。 -->
+<script th:src="@{/js/bootstrap.min.js}" src="../public/js/bootstrap.min.js" type="text/javascript"></script>
+<script th:src="@{/js/vue.js}" src="../public/js/vue.js" type="text/javascript"></script>
+
+<script>
+    Vue.config.devtools = true;
+    new Vue({
+        el: '#app',
+        data: {
+            tasks: [],
+            form: {},
+            status: null,
+        },
+        mounted: function () {
+            this.initForm();
+            this.tasks.push(this.form);
+            this.tasks.push(this.form);
+
+            var that = this;
+            setInterval(function () {
+                that.fetchStatus()
+            }, 1500);
+        },
+        methods: {
+            checkForm: function () {
+                return (this.form.url.indexOf("http") === 0 && this.form.duration > 1 && this.form.threads > 1)
+            },
+            addTask: function () {
+                if (this.checkForm()) {
+                    this.tasks.push(this.form);
+                    this.initForm();
+                } else {
+                    alert('任务错误')
+                }
+            },
+            fetchStatus: function () {
+                var that = this;
+                $.getJSON('/api/status').then(function (result) {
+                    that.status = result;
+                });
+            },
+            initForm: function () {
+                this.form = {
+                    method: 'GET',
+                    url: '',
+                    threads: 2,
+                    duration: 10,
+                    data: ''
+                };
+            }
+        }
+    });
+</script>
+</body>
+</html>
