@@ -52,44 +52,37 @@
         </div>
     </div>
     <div style="display: flex;justify-content: space-between;margin: 10px 0">
-        <button v-if="!status || !status.active" class="btn btn-success" v-on:click="addTask">添加任务</button>
-        <template v-if="status">
-            <button v-if="!status.active" class="btn btn-info">执行</button>
-            <button v-if="status.active" class="btn btn-danger">停止</button>
+        <button class="btn" disabled="disabled" v-if="loading || (status && status.active)">执行中……</button>
+        <template v-if="!loading">
+            <button v-if="!status || !status.active" class="btn btn-success" v-on:click="addTask">添加任务</button>
+            <template v-if="status">
+                <button v-if="!status.active && tasks.length > 0" class="btn btn-info" v-on:click="run">执行</button>
+                <button v-if="status.active" class="btn btn-danger" v-on:click="stop">停止</button>
+            </template>
         </template>
     </div>
     <hr>
     <div>
         <div v-for="(task, i) in tasks" :key="i">
             <h4>{{task.method}} {{task.url}}</h4>
-            <div><b>并发线程：{{task.threads}} 持续时间：{{task.duration}}</b></div>
+            <div><b>并发线程：{{task.threads}} 持续时间：{{task.duration}}</b> <button class="btn right" v-on:click="removeTask(task)">删除</button></div>
             <div v-if="status && status.result[task.url]" style="display: flex;justify-content: space-between;margin: 10px 0">
                 <ul class="list-group" style="width: 24%">
-                    <li class="list-group-item"><b>总共请求：</b>{{status.result[task.url].total}}}</li>
-                    <li class="list-group-item"><b>成功请求</b>{{status.result[task.url].success}}}</li>
-                    <li class="list-group-item"><b></b>{{status.result[task.url].fail}}}</li>
-                    <li class="list-group-item"><b></b>{{status.result[task.url].bytes}}}</li>
+                    <li class="list-group-item"><b>接受数据：</b>{{(status.result[task.url].bytes / 1024).toFixed(2)}}KiB</li>
+                    <li class="list-group-item"><b>QPS：</b>{{(status.result[task.url].rps).toFixed(2)}}/s</li>
+                    <li class="list-group-item"><b>TPS：</b>{{(status.result[task.url].tps).toFixed(2)}}/s</li>
+                    <li class="list-group-item"><b>最大并发：</b>{{status.result[task.url].maxThreads}}</li>
                 </ul>
                 <ul class="list-group" style="width: 24%">
-                    <li class="list-group-item">Cras justo odio</li>
-                    <li class="list-group-item">Dapibus ac facilisis in</li>
-                    <li class="list-group-item">Morbi leo risus</li>
-                    <li class="list-group-item">Porta ac consectetur ac</li>
-                    <li class="list-group-item">Vestibulum at eros</li>
+                    <li class="list-group-item"><b>最大响应时间：</b>{{status.result[task.url].maxTime}}ms</li>
+                    <li class="list-group-item"><b>最小响应时间：</b>{{status.result[task.url].minTime}}ms</li>
+                    <li class="list-group-item"><b>平均响应时间：</b>{{(status.result[task.url].meanTime).toFixed(2)}}ms</li>
+                    <li class="list-group-item"><b>持续时间：</b>{{status.result[task.url].duration / 1000}}s</li>
                 </ul>
                 <ul class="list-group" style="width: 24%">
-                    <li class="list-group-item">Cras justo odio</li>
-                    <li class="list-group-item">Dapibus ac facilisis in</li>
-                    <li class="list-group-item">Morbi leo risus</li>
-                    <li class="list-group-item">Porta ac consectetur ac</li>
-                    <li class="list-group-item">Vestibulum at eros</li>
-                </ul>
-                <ul class="list-group" style="width: 24%">
-                    <li class="list-group-item">Cras justo odio</li>
-                    <li class="list-group-item">Dapibus ac facilisis in</li>
-                    <li class="list-group-item">Morbi leo risus</li>
-                    <li class="list-group-item">Porta ac consectetur ac</li>
-                    <li class="list-group-item">Vestibulum at eros</li>
+                    <li class="list-group-item"><b>总共请求：</b>{{status.result[task.url].total}}</li>
+                    <li class="list-group-item"><b>成功请求：</b>{{status.result[task.url].success}}</li>
+                    <li class="list-group-item"><b>失败请求：</b>{{status.result[task.url].fail}}</li>
                 </ul>
             </div>
             <hr>
@@ -111,11 +104,12 @@
             tasks: [],
             form: {},
             status: null,
+            loading: false,
         },
         mounted: function () {
             this.initForm();
-            this.tasks.push(this.form);
-            this.tasks.push(this.form);
+            // this.tasks.push(this.form);
+            // this.tasks.push(this.form);
 
             var that = this;
             setInterval(function () {
@@ -123,16 +117,56 @@
             }, 1500);
         },
         methods: {
+            run: function () {
+                this.loading = true;
+                var that = this
+                setTimeout(function () {
+                    that.loading = false
+                }, 3000);
+                $.ajax({
+                    type: 'POST',
+                    url: '/api/run',
+                    data: JSON.stringify(this.tasks),
+                    contentType: "application/json; charset=utf-8",
+                    dataType: 'json'
+                })
+            },
+            stop: function () {
+                this.loading = true;
+                var that = this
+                setTimeout(function () {
+                    that.loading = false
+                }, 3000);
+                $.ajax({
+                    type: 'POST',
+                    url: '/api/stop',
+                    dataType: 'json'
+                });
+            },
             checkForm: function () {
-                return (this.form.url.indexOf("http") === 0 && this.form.duration > 1 && this.form.threads > 1)
+                var url = this.form.url;
+                if (this.tasks.filter(function (a) {
+                    return a.url === url;
+                }).length > 0) {
+                    alert('已有此URL任务');
+                    return 0;
+                }
+
+                return (this.form.url.indexOf("http") === 0 && this.form.duration >= 1 && this.form.threads >= 1)
             },
             addTask: function () {
                 if (this.checkForm()) {
-                    this.tasks.push(this.form);
+                    this.tasks.unshift(this.form);
                     this.initForm();
                 } else {
                     alert('任务错误')
                 }
+            },
+            removeTask: function(task) {
+                console.log(task, this.tasks);
+                this.tasks = this.tasks.filter(function (x) {
+                    return x.url !== task.url;
+                })
             },
             fetchStatus: function () {
                 var that = this;
@@ -144,7 +178,7 @@
                 this.form = {
                     method: 'GET',
                     url: '',
-                    threads: 2,
+                    threads: 1,
                     duration: 10,
                     data: ''
                 };

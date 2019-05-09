@@ -18,12 +18,14 @@ import org.apache.jorphan.collections.HashTree;
 
 import java.io.File;
 import java.util.*;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 
 public class Jmeter {
     public static String logFileName = "stresstest.csv";
     public static String exportHtmlDir = "report-output";
 
-    public static HashMap<String, List<SampleResult>> result = new HashMap<String, List<SampleResult>>();
+    public static ConcurrentHashMap<String, CopyOnWriteArrayList<SampleResult>> result = new ConcurrentHashMap<String, CopyOnWriteArrayList<SampleResult>>();
 
     public static class MyResultCollector extends ResultCollector {
 
@@ -40,7 +42,7 @@ public class Jmeter {
             if (result.containsKey(key)) {
                 result.get(key).add(r);
             } else {
-                ArrayList<SampleResult> list = new ArrayList<SampleResult>();
+                CopyOnWriteArrayList<SampleResult> list = new CopyOnWriteArrayList<SampleResult>();
                 list.add(r);
                 result.put(key, list);
             }
@@ -55,7 +57,7 @@ public class Jmeter {
         if (dir.exists()) delete(dir.getAbsolutePath());
 
         // 清理结果
-        result = new HashMap<>();
+        result = new ConcurrentHashMap<>();
 
         StandardJMeterEngine standardJMeterEngine = new StandardJMeterEngine();
         // 配置jmeter

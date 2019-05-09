@@ -69,22 +69,22 @@ public class TaskService {
 
             r.total = v.size();
             r.success = s.size();
+            r.fail = r.total - r.success;
 
             if (r.success > 0) {
-                r.sst = s.stream().mapToLong(SampleResult::getStartTime).min().getAsLong();
-                r.set = s.stream().mapToLong(SampleResult::getStartTime).max().getAsLong();
+                r.sst = v.stream().mapToLong(SampleResult::getStartTime).min().getAsLong();
+                r.set = v.stream().mapToLong(SampleResult::getStartTime).max().getAsLong();
 
-                r.est = s.stream().mapToLong(SampleResult::getStartTime).min().getAsLong();
-                r.eet = s.stream().mapToLong(SampleResult::getStartTime).max().getAsLong();
+                r.est = v.stream().mapToLong(SampleResult::getStartTime).min().getAsLong();
+                r.eet = v.stream().mapToLong(SampleResult::getStartTime).max().getAsLong();
 
                 r.duration = r.eet - r.sst;
 
-                r.fail = r.total - r.success;
                 r.rps = s.size() / ((r.set - r.sst) / 1000.0);
                 r.tps = s.size() / ((r.eet - r.sst) / 1000.0);
                 r.bytes = s.stream().mapToLong(SampleResult::getBytesAsLong).sum();
                 r.sendBytes = s.stream().mapToLong(SampleResult::getSentBytes).sum();
-                r.maxThreads = s.stream().mapToLong(SampleResult::getGroupThreads).max().getAsLong();
+                r.maxThreads = v.stream().mapToLong(SampleResult::getGroupThreads).max().getAsLong();
 
                 r.maxTime = s.stream().mapToLong(x -> x.getEndTime() - x.getStartTime()).max().getAsLong();
                 r.minTime = s.stream().mapToLong(x -> x.getEndTime() - x.getStartTime()).min().getAsLong();
