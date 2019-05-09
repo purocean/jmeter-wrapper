@@ -65,7 +65,7 @@
     <div>
         <div v-for="(task, i) in tasks" :key="i">
             <h4>{{task.method}} {{task.url}}</h4>
-            <div><b>并发线程：{{task.threads}} 持续时间：{{task.duration}}</b> <button class="btn right" v-on:click="removeTask(task)">删除</button></div>
+            <div><b>并发线程：{{task.threads}} 持续时间：{{task.duration}}</b> <button v-if="!status || !status.active" class="btn right" v-on:click="removeTask(task)">删除</button></div>
             <div v-if="status && status.result[task.url]" style="display: flex;justify-content: space-between;margin: 10px 0">
                 <ul class="list-group" style="width: 24%">
                     <li class="list-group-item"><b>接受数据：</b>{{(status.result[task.url].bytes / 1024).toFixed(2)}}KiB</li>
